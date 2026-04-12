@@ -2,21 +2,25 @@
 #include "scheduler.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 int main(void)
 {
-    ReadyQueue rq;
-    ready_queue_init(&rq);
+    srand((unsigned)time(NULL));
+
+    ReadyQueue queue;
+    ready_queue_init(&queue);
 
     Process p1 = {.pid = 1, .burst_time = 10, .remaining_time = 10, .state = READY};
     Process p2 = {.pid = 2, .burst_time = 5, .remaining_time = 5, .state = READY};
     Process p3 = {.pid = 3, .burst_time = 8, .remaining_time = 8, .state = READY};
 
-    ready_queue_enqueue(&rq, p1);
-    ready_queue_enqueue(&rq, p2);
-    ready_queue_enqueue(&rq, p3);
+    ready_queue_enqueue(&queue, p1);
+    ready_queue_enqueue(&queue, p2);
+    ready_queue_enqueue(&queue, p3);
 
-    round_robin(&rq, 2);
+    round_robin(&queue, 2);
 
     return 0;
 }
