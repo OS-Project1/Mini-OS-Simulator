@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "memory.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +23,7 @@ static int blocked_is_empty(void)
     return blocked_count == 0;
 }
 
-static void blocked_add(Process p, int ticks)
+static void blocked_add(Process p)
 {
     if (blocked_count >= READY_QUEUE_MAX) {
         fprintf(stderr, "blocked list is full (max %d)\n", READY_QUEUE_MAX);
@@ -30,7 +31,7 @@ static void blocked_add(Process p, int ticks)
     }
 
     blocked_procs[blocked_count] = p;
-    blocked_io_ticks[blocked_count] = ticks;
+    blocked_io_ticks[blocked_count] = p.blocked_ticks;
     blocked_count++;
 }
 
@@ -44,7 +45,7 @@ static void blocked_tick_and_wake(ReadyQueue *q)
         if (blocked_io_ticks[i] <= 0) {
             Process p = blocked_procs[i];
             p.state = READY;
-            printf("[I/O] Process P%d completed I/O → READY\n", p.pid);
+            printf("[Scheduler] Process P%d unblocked → READY\n", p.pid);
             ready_queue_enqueue(q, p);
 
             blocked_count--;
@@ -118,10 +119,20 @@ void round_robin(ReadyQueue *q, int time_quantum)
             p.state = RUNNING;
             printf("[Scheduler] Running P%d\n", p.pid);
 
+            {
+                const int max_va = MM_PAGE_SIZE * MM_MAX_PAGES;
+                int va = (rand() % max_va);
+                if (!access_memory(&p, va) && p.state == BLOCKED) {
+                    blocked_add(p);
+                    continue;
+                }
+            }
+
             if (p.remaining_time > 0 && (rand() % 3 == 0)) {
                 p.state = BLOCKED;
+                p.blocked_ticks = 1 + rand() % 3;
                 printf("[I/O] Process P%d is blocked for I/O\n", p.pid);
-                blocked_add(p, 1 + rand() % 3);
+                blocked_add(p);
                 continue;
             }
 
