@@ -1,6 +1,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "memory.h"
+#include "concurrency.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@ int main(void)
     ready_queue_enqueue(&queue, p3);
 
     round_robin(&queue, 2);
+    concurrency_demo_run();
 
     return 0;
 }

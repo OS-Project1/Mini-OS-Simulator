@@ -18,7 +18,7 @@ CFLAGS  := -Wall -Wextra -std=c11 $(MM_CPPFLAGS)
 LDFLAGS :=
 
 TARGET  := mini-os
-SRCS    := main.c process.c scheduler.c memory.c
+SRCS    := main.c process.c scheduler.c memory.c concurrency.c
 OBJS    := $(SRCS:.c=.o)
 OUTFILE := cikti.txt
 
