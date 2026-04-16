@@ -22,6 +22,7 @@ typedef enum LogOperation
 
 typedef struct LogEntry
 {
+    int pid;
     time_t timestamp;
     LogOperation operation;
     char file_name[LOG_MAX_NAME];
@@ -38,7 +39,7 @@ typedef struct Logger
 void logging_init(Logger *logger);
 
 /** Log an operation: prints to console and stores in the ring buffer. */
-void logging_log(Logger *logger, LogOperation op, const char *file_name);
+void logging_log(Logger *logger, int pid, LogOperation op, const char *file_name);
 
 /** Get the number of stored logs (<= LOG_MAX_ENTRIES). */
 size_t logging_count(const Logger *logger);

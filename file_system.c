@@ -7,12 +7,31 @@
 static Logger g_logger;
 static int g_logger_initialized = 0;
 
+static FileSystem g_fs;
+static int g_fs_initialized = 0;
+
 static void fs_ensure_logger_init(void)
 {
     if (!g_logger_initialized)
     {
         logging_init(&g_logger);
         g_logger_initialized = 1;
+    }
+}
+
+static void fs_ensure_init(void)
+{
+    if (!g_fs_initialized)
+    {
+        g_fs.file_count = 0;
+        for (size_t i = 0; i < FS_MAX_FILES; i++)
+        {
+            g_fs.files[i].name[0] = '\0';
+            g_fs.files[i].size = 0;
+            g_fs.files[i].content = NULL;
+            g_fs.files[i].created_time = (time_t)0;
+        }
+        g_fs_initialized = 1;
     }
 }
 
@@ -69,32 +88,21 @@ static void fs_clear_file(File *f)
     f->name[0] = '\0';
 }
 
-void file_system_init(FileSystem *fs)
+void file_system_init(void)
 {
-    if (!fs)
-    {
-        return;
-    }
-
-    fs->file_count = 0;
-    for (size_t i = 0; i < FS_MAX_FILES; i++)
-    {
-        fs->files[i].name[0] = '\0';
-        fs->files[i].size = 0;
-        fs->files[i].content = NULL;
-        fs->files[i].created_time = (time_t)0;
-    }
+    fs_ensure_init();
 }
 
-FsResult create_file(FileSystem *fs, const char *name)
+FsResult create_file(int pid, const char *name)
 {
-    if (!fs || !name || name[0] == '\0')
+    if (!name || name[0] == '\0')
     {
         return FS_ERR_INVALID_ARG;
     }
 
+    fs_ensure_init();
     fs_ensure_logger_init();
-    logging_log(&g_logger, LOG_OP_CREATE, name);
+    logging_log(&g_logger, pid, LOG_OP_CREATE, name);
 
     size_t name_len = strnlen(name, FS_MAX_NAME);
     if (name_len >= FS_MAX_NAME)
@@ -102,23 +110,23 @@ FsResult create_file(FileSystem *fs, const char *name)
         return FS_ERR_NAME_TOO_LONG;
     }
 
-    if (fs_find_index(fs, name) >= 0)
+    if (fs_find_index(&g_fs, name) >= 0)
     {
         return FS_ERR_EXISTS;
     }
 
-    if (fs->file_count >= FS_MAX_FILES)
+    if (g_fs.file_count >= FS_MAX_FILES)
     {
         return FS_ERR_NO_SPACE;
     }
 
-    int slot = fs_find_free_slot(fs);
+    int slot = fs_find_free_slot(&g_fs);
     if (slot < 0)
     {
         return FS_ERR_NO_SPACE;
     }
 
-    File *f = &fs->files[slot];
+    File *f = &g_fs.files[slot];
     memcpy(f->name, name, name_len);
     f->name[name_len] = '\0';
     f->size = 0;
@@ -132,65 +140,65 @@ FsResult create_file(FileSystem *fs, const char *name)
     }
     f->content[0] = '\0';
 
-    fs->file_count++;
+    g_fs.file_count++;
     return FS_OK;
 }
 
-FsResult delete_file(FileSystem *fs, const char *name)
+FsResult delete_file(int pid, const char *name)
 {
-    if (!fs || !name || name[0] == '\0')
+    if (!name || name[0] == '\0')
     {
         return FS_ERR_INVALID_ARG;
     }
 
+    fs_ensure_init();
     fs_ensure_logger_init();
-    logging_log(&g_logger, LOG_OP_DELETE, name);
+    logging_log(&g_logger, pid, LOG_OP_DELETE, name);
 
-    int idx = fs_find_index(fs, name);
+    int idx = fs_find_index(&g_fs, name);
     if (idx < 0)
     {
         return FS_ERR_NOT_FOUND;
     }
 
-    fs_clear_file(&fs->files[idx]);
-    if (fs->file_count > 0)
+    fs_clear_file(&g_fs.files[idx]);
+    if (g_fs.file_count > 0)
     {
-        fs->file_count--;
+        g_fs.file_count--;
     }
     return FS_OK;
 }
 
-FsResult write_file(FileSystem *fs, const char *name, const void *data, size_t size)
+FsResult write_file(int pid, const char *name, const char *content)
 {
-    if (!fs || !name || name[0] == '\0')
+    if (!name || name[0] == '\0')
     {
         return FS_ERR_INVALID_ARG;
     }
-    if (size > 0 && !data)
+    if (!content)
     {
         return FS_ERR_INVALID_ARG;
     }
 
+    fs_ensure_init();
     fs_ensure_logger_init();
-    logging_log(&g_logger, LOG_OP_WRITE, name);
+    logging_log(&g_logger, pid, LOG_OP_WRITE, name);
 
-    int idx = fs_find_index(fs, name);
+    int idx = fs_find_index(&g_fs, name);
     if (idx < 0)
     {
         return FS_ERR_NOT_FOUND;
     }
 
-    File *f = &fs->files[idx];
+    size_t size = strlen(content);
+    File *f = &g_fs.files[idx];
     char *new_buf = (char *)realloc(f->content, size + 1);
     if (!new_buf)
     {
         return FS_ERR_NO_MEMORY;
     }
 
-    if (size > 0)
-    {
-        memcpy(new_buf, data, size);
-    }
+    memcpy(new_buf, content, size);
     new_buf[size] = '\0';
 
     f->content = new_buf;
@@ -198,51 +206,40 @@ FsResult write_file(FileSystem *fs, const char *name, const void *data, size_t s
     return FS_OK;
 }
 
-const char *read_file(const FileSystem *fs, const char *name, size_t *out_size)
+const char *read_file(int pid, const char *name)
 {
-    if (out_size)
-    {
-        *out_size = 0;
-    }
-    if (!fs || !name || name[0] == '\0')
+    if (!name || name[0] == '\0')
     {
         return NULL;
     }
 
+    fs_ensure_init();
     fs_ensure_logger_init();
-    logging_log(&g_logger, LOG_OP_READ, name);
+    logging_log(&g_logger, pid, LOG_OP_READ, name);
 
-    int idx = fs_find_index(fs, name);
+    int idx = fs_find_index(&g_fs, name);
     if (idx < 0)
     {
         return NULL;
     }
 
-    const File *f = &fs->files[idx];
-    if (out_size)
-    {
-        *out_size = f->size;
-    }
+    const File *f = &g_fs.files[idx];
     return f->content;
 }
 
-void list_files(const FileSystem *fs, FILE *out)
+void list_files(FILE *out)
 {
     if (!out)
     {
         out = stdout;
     }
 
-    if (!fs)
-    {
-        fprintf(out, "(file system is NULL)\n");
-        return;
-    }
+    fs_ensure_init();
 
-    fprintf(out, "Files (%zu/%d):\n", fs->file_count, FS_MAX_FILES);
+    fprintf(out, "Files (%zu/%d):\n", g_fs.file_count, FS_MAX_FILES);
     for (size_t i = 0; i < FS_MAX_FILES; i++)
     {
-        const File *f = &fs->files[i];
+        const File *f = &g_fs.files[i];
         if (f->name[0] == '\0')
         {
             continue;

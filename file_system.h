@@ -38,21 +38,20 @@ typedef enum FsResult
     FS_ERR_NO_MEMORY = -6
 } FsResult;
 
-/** Initialize an empty in-memory file system. */
-void file_system_init(FileSystem *fs);
+/** Initialize the internal in-memory file system (optional; auto-inits on first use). */
+void file_system_init(void);
 
-FsResult create_file(FileSystem *fs, const char *name);
-FsResult delete_file(FileSystem *fs, const char *name);
-FsResult write_file(FileSystem *fs, const char *name, const void *data, size_t size);
+FsResult create_file(int pid, const char *name);
+FsResult delete_file(int pid, const char *name);
+FsResult write_file(int pid, const char *name, const char *content);
 
 /**
  * Read a file's content (owned by the file system; do not free).
- * If out_size is non-NULL, it receives the byte size (excluding the trailing '\0').
  */
-const char *read_file(const FileSystem *fs, const char *name, size_t *out_size);
+const char *read_file(int pid, const char *name);
 
 /** Print a simple file listing to the given stream (stdout if out is NULL). */
-void list_files(const FileSystem *fs, FILE *out);
+void list_files(FILE *out);
 
 #endif
 

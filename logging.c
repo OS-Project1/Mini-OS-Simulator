@@ -50,13 +50,14 @@ void logging_init(Logger *logger)
     logger->next_index = 0;
     for (size_t i = 0; i < LOG_MAX_ENTRIES; i++)
     {
+        logger->entries[i].pid = 0;
         logger->entries[i].timestamp = (time_t)0;
         logger->entries[i].operation = LOG_OP_READ;
         logger->entries[i].file_name[0] = '\0';
     }
 }
 
-void logging_log(Logger *logger, LogOperation op, const char *file_name)
+void logging_log(Logger *logger, int pid, LogOperation op, const char *file_name)
 {
     if (!logger || !file_name || file_name[0] == '\0')
     {
@@ -64,6 +65,7 @@ void logging_log(Logger *logger, LogOperation op, const char *file_name)
     }
 
     LogEntry *e = &logger->entries[logger->next_index];
+    e->pid = pid;
     e->timestamp = time(NULL);
     e->operation = op;
 
@@ -83,7 +85,7 @@ void logging_log(Logger *logger, LogOperation op, const char *file_name)
 
     char ts[32];
     logging_format_timestamp(e->timestamp, ts, sizeof(ts));
-    printf("[LOG %s] %-6s %s\n", ts, logging_operation_to_string(op), e->file_name);
+    printf("[LOG %s] PID=%d %-6s %s\n", ts, e->pid, logging_operation_to_string(op), e->file_name);
 }
 
 size_t logging_count(const Logger *logger)
