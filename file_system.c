@@ -1,7 +1,20 @@
 #include "file_system.h"
+#include "logging.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+static Logger g_logger;
+static int g_logger_initialized = 0;
+
+static void fs_ensure_logger_init(void)
+{
+    if (!g_logger_initialized)
+    {
+        logging_init(&g_logger);
+        g_logger_initialized = 1;
+    }
+}
 
 static int fs_find_index(const FileSystem *fs, const char *name)
 {
@@ -80,6 +93,9 @@ FsResult create_file(FileSystem *fs, const char *name)
         return FS_ERR_INVALID_ARG;
     }
 
+    fs_ensure_logger_init();
+    logging_log(&g_logger, LOG_OP_CREATE, name);
+
     size_t name_len = strnlen(name, FS_MAX_NAME);
     if (name_len >= FS_MAX_NAME)
     {
@@ -127,6 +143,9 @@ FsResult delete_file(FileSystem *fs, const char *name)
         return FS_ERR_INVALID_ARG;
     }
 
+    fs_ensure_logger_init();
+    logging_log(&g_logger, LOG_OP_DELETE, name);
+
     int idx = fs_find_index(fs, name);
     if (idx < 0)
     {
@@ -151,6 +170,9 @@ FsResult write_file(FileSystem *fs, const char *name, const void *data, size_t s
     {
         return FS_ERR_INVALID_ARG;
     }
+
+    fs_ensure_logger_init();
+    logging_log(&g_logger, LOG_OP_WRITE, name);
 
     int idx = fs_find_index(fs, name);
     if (idx < 0)
@@ -186,6 +208,9 @@ const char *read_file(const FileSystem *fs, const char *name, size_t *out_size)
     {
         return NULL;
     }
+
+    fs_ensure_logger_init();
+    logging_log(&g_logger, LOG_OP_READ, name);
 
     int idx = fs_find_index(fs, name);
     if (idx < 0)
