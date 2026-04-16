@@ -2,6 +2,7 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "concurrency.h"
+#include "file_system.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,15 @@ int main(void)
 
     round_robin(&queue, 2);
     concurrency_demo_run();
+
+    file_system_init();
+
+    create_file(1, "data.txt");
+    write_file(1, "data.txt", "Hello OS");
+
+    read_file(2, "data.txt");
+
+    delete_file(1, "data.txt");
 
     return 0;
 }
