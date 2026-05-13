@@ -1,4 +1,12 @@
 *.o
 mini-os
+build/
 cikti.txt
+cikti_senaryo1_bellek.txt
 .DS_Store
+
+# Uzak repoya gönderilmeyecek yerel dosyalar (isterseniz satırları silin veya yorumlayın)
+os_sim
+FAILURE_SCENARIO.md
+MEMORY_YONETIMI.md
+TASARIM_RAPORU.md

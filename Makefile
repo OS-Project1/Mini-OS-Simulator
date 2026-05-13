@@ -14,26 +14,40 @@ MM_CPPFLAGS := \
 	-DMM_MAX_PID=$(MM_MAX_PID) \
 	-DMM_LOAD_TICKS=$(MM_LOAD_TICKS)
 
-CFLAGS  := -Wall -Wextra -std=c11 $(MM_CPPFLAGS)
+INC_DIR   := include
+SRC_DIR   := src
+BUILD_DIR := build
+
+CFLAGS  := -Wall -Wextra -std=c11 $(MM_CPPFLAGS) -I$(INC_DIR)
 LDFLAGS :=
 
 TARGET  := mini-os
-SRCS    := main.c process.c scheduler.c memory.c concurrency.c file_system.c logging.c
-OBJS    := $(SRCS:.c=.o)
+SRCS    := $(SRC_DIR)/main.c \
+	$(SRC_DIR)/process.c \
+	$(SRC_DIR)/scheduler.c \
+	$(SRC_DIR)/memory.c \
+	$(SRC_DIR)/concurrency.c \
+	$(SRC_DIR)/file_system.c \
+	$(SRC_DIR)/logging.c
+OBJS    := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 OUTFILE := cikti.txt
 
-.PHONY: all clean run txt
+.PHONY: all clean run txt failure1 txt-failure1
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-%.o: %.c
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+$(TARGET): $(OBJS) | $(BUILD_DIR)
+	$(CC) $(LDFLAGS) -o $@ $^
+
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf $(BUILD_DIR) $(TARGET)
+	rm -f *.o mini-os
 
 run: $(TARGET)
 	./$(TARGET)
@@ -41,3 +55,16 @@ run: $(TARGET)
 txt: $(TARGET)
 	./$(TARGET) > $(OUTFILE)
 	@echo "Çıktı $(OUTFILE) dosyasına yazıldı."
+
+# Senaryo 1 (FAILURE_SCENARIO.md): fizik çerçeve baskısı — az çerçeve + daha geniş sanal alan + yükleme gecikmesi
+# Kullanım: make failure1   veya   make txt-failure1
+failure1:
+	$(MAKE) clean
+	$(MAKE) MM_FRAME_COUNT=2 MM_MAX_PAGES=24 MM_LOAD_TICKS=4 all
+	./$(TARGET)
+
+txt-failure1:
+	$(MAKE) clean
+	$(MAKE) MM_FRAME_COUNT=2 MM_MAX_PAGES=24 MM_LOAD_TICKS=4 all
+	./$(TARGET) > cikti_senaryo1_bellek.txt
+	@echo "Senaryo 1 çıktısı cikti_senaryo1_bellek.txt dosyasına yazıldı."

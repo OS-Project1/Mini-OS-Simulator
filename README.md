@@ -2,7 +2,15 @@
 
 **Ders:** İşletim Sistemleri — Mini İşletim Sistemi Simülasyon Projesi  
 **Dil:** C11  
-**Konum:** `Mini-OS-Simulator/` (kaynak: `main.c`, `scheduler.c`, `memory.c`, `concurrency.c`, `file_system.c`, `logging.c`)
+**Konum:** `Mini-OS-Simulator/` — kaynaklar `src/`, başlık dosyaları `include/`, derleme çıktıları `build/`.
+
+**Dizin yapısı**
+
+| Dizin | İçerik |
+|--------|--------|
+| `src/` | Tüm `.c` dosyaları (giriş: `src/main.c`) |
+| `include/` | Tüm `.h` dosyaları (`mm_config.h` dahil) |
+| `build/` | Ara `.o` dosyaları (`make` ile oluşur; `make clean` siler) |
 
 Bu belge hem proje özeti hem de bildirilen rapor gereksinimleriyle uyumlu **tasarım savunması** olarak düzenlenmiştir.
 
@@ -25,7 +33,7 @@ Tema olarak **genel amaçlı, eğitim odaklı mini bir işletim sistemi kabuğu*
 
 ### 1.3 Yürütme akışı
 
-`main.c` sırasıyla:
+`src/main.c` sırasıyla:
 
 1. Bellek ve üç sürecin sayfa tablolarını başlatır.  
 2. Üç süreci Round Robin zamanlayıcıya verir (`round_robin(&queue, 2)`).  
@@ -39,26 +47,26 @@ Tema olarak **genel amaçlı, eğitim odaklı mini bir işletim sistemi kabuğu*
 ```mermaid
 flowchart LR
     subgraph Entry
-        MAIN[main.c]
+        MAIN[src/main.c]
     end
 
     subgraph Process_and_CPU
-        SCHED[scheduler.c]
-        PROC[process.c / process.h]
+        SCHED[src/scheduler.c]
+        PROC[src/process.c + include/process.h]
     end
 
     subgraph Memory_subsystem
-        MEM[memory.c]
-        MMC[mm_config.h]
+        MEM[src/memory.c]
+        MMC[include/mm_config.h]
     end
 
     subgraph Concurrency_subsystem
-        CONC[concurrency.c]
+        CONC[src/concurrency.c]
     end
 
     subgraph File_and_log
-        FS[file_system.c]
-        LOG[logging.c]
+        FS[src/file_system.c]
+        LOG[src/logging.c]
     end
 
     MAIN --> SCHED
@@ -82,21 +90,21 @@ Aşağıdaki her blokta rubric gereği **seçim**, **alternatif**, **neden seçi
 
 ### 3.1 Scheduling: Round Robin
 
-- **Seçim:** Hazır kuyruk üzerinden **Round Robin**, zaman kuantumu örnek olarak 2 zaman birimi (`main.c` içinde `round_robin(&queue, 2)`).
+- **Seçim:** Hazır kuyruk üzerinden **Round Robin**, zaman kuantumu örnek olarak 2 zaman birimi (`src/main.c` içinde `round_robin(&queue, 2)`).
 - **Alternatif:** FIFO (FCFS).
 - **Neden seçilmedi:** FIFO, uzun CPU patlamalı süreçler olduğunda kısa işlerin gecikmesini artırır; adalet ve tepki süresi açısından zayıftır.
 - **Trade-off:** RR daha dengeli tepki süresi sağlar; buna karşılık sık zaman dilimi değişimi ile **yüksek bağlam değiştirme maliyeti** kabul edilmiştir.
 
 ### 3.2 Memory: Paging + page fault + FIFO replacement
 
-- **Seçim:** Süreç başına mantıksal sayfa tablosu, sınırlı fizik çerçeve havuzu (`MM_FRAME_COUNT`), page fault sırasında **FIFO** ile kurban seçimi (`memory.c`).
+- **Seçim:** Süreç başına mantıksal sayfa tablosu, sınırlı fizik çerçeve havuzu (`MM_FRAME_COUNT`), page fault sırasında **FIFO** ile kurban seçimi (`src/memory.c`).
 - **Alternatif:** LRU veya CLOCK (ikinci şans).
 - **Neden seçilmedi:** Bu ölçekte LRU doğru uygulanması ek veri yapısı ve karmaşıklık getirir; FIFO öğretim ve doğrulanabilirlik için yeterli ve deterministik olarak anlatılabilir (yer değiştirme sırası kuyrukla izleniyor).
 - **Trade-off:** FIFO basittir ancak iş yükünde sık tekrar eden kullanımda LRU’ya göre **gereksiz fault** üretebilir.
 
 ### 3.3 Concurrency: Mutex korumalı kritik bölge
 
-- **Seçim:** Ortak bir sayaca üç simüle thread’den erişim; **enhanced** sürümde mutex + bekleme kuyruğu (`concurrency.c`).
+- **Seçim:** Ortak bir sayaca üç simüle thread’den erişim; **enhanced** sürümde mutex + bekleme kuyruğu (`src/concurrency.c`).
 - **Alternatif:** Kilitlenmeyen (lock-free) veya daha ağır senkronizasyon (örn. RW lock).
 - **Neden seçilmedi:** Lock-free yaklaşım bu derste doğrulanabilirlık/anlatım maliyetini artırır; RW lock gereksiz karmaşıklıktır.
 - **Trade-off:** Mutex doğruluk sağlar; **blocking** ile gecikme ve potansiyel **lock contention** kabul edilmiştir (basit starvation analizi yapılabilir bir demo üretir).
@@ -145,15 +153,15 @@ Rubric gereği **en az iki bileşen** anlamlı biçimde bağlanmıştır; ayrıc
 
 ### 5.1 Zamanlama + bellek
 
-`scheduler.c` içinde süreç çalışırken rastgele bir sanal adrese erişim denenebilir. `memory.c` içindeki `access_memory()`, geçersiz veya yüklü olmayan sayfa için **page fault** üretir, süreci **BLOCKED** yapar ve bellek yükleme süresini `blocked_ticks` ile temsil eder. Zamanlayıcı bloklanmış süreci çalıştırmayı bırakıp başka READY süreçlere geçer; süre dolunca süreç yeniden READY kuyruğuna alınır. Bu bağ tamamen kod içinde bağlıdır ve loglarda `[Memory]` ile `[Scheduler]` satırlarında görülür.
+`src/scheduler.c` içinde süreç çalışırken rastgele bir sanal adrese erişim denenebilir. `src/memory.c` içindeki `access_memory()`, geçersiz veya yüklü olmayan sayfa için **page fault** üretir, süreci **BLOCKED** yapar ve bellek yükleme süresini `blocked_ticks` ile temsil eder. Zamanlayıcı bloklanmış süreci çalıştırmayı bırakıp başka READY süreçlere geçer; süre dolunca süreç yeniden READY kuyruğuna alınır. Bu bağ tamamen kod içinde bağlıdır ve loglarda `[Memory]` ile `[Scheduler]` satırlarında görülür.
 
 ### 5.2 Zamanlama + (simüle) I/O veya bloklanma davranışı
 
-Aynı modülde süreçler rastgele bir olasılıkla **I/O için bloklanır** (`[I/O] Process Px is blocked for I/O`). Bu, CPU’nun başka sürece verilmesi için bir **bekleme nedenidir**; gerçek dosya sistem çağrısı sırasında da I/O bloklama böyle modellenmiş olabilir — mevcut `main.c` sırasında dosya işlemleri zamanlanmış süreç döngüsünün sonrasında yapılsa da rubric için **bloklu süreç + hazır kuyruk** bağlantısı zamanlayıcıda somut olarak vardır.
+Aynı modülde süreçler rastgele bir olasılıkla **I/O için bloklanır** (`[I/O] Process Px is blocked for I/O`). Bu, CPU’nun başka sürece verilmesi için bir **bekleme nedenidir**; gerçek dosya sistem çağrısı sırasında da I/O bloklama böyle modellenmiş olabilir — mevcut `src/main.c` sırasında dosya işlemleri zamanlanmış süreç döngüsünün sonrasında yapılsa da rubric için **bloklu süreç + hazır kuyruk** bağlantısı zamanlayıcıda somut olarak vardır.
 
 ### 5.3 Eşzamanlılık + “mini zamanlayıcı”
 
-`concurrency.c` içinde thread’ler round-robin tarzı tick ile dispatch edilir; mutex bekleyen thread **BLOCKED** olur ve kilit salındığında tekrar READY’ye alınır. Bu; paylaşımlı kaynak ve CPU kullanılabilirliği arasında basit bir **etkileşim örneğidir**.
+`src/concurrency.c` içinde thread’ler round-robin tarzı tick ile dispatch edilir; mutex bekleyen thread **BLOCKED** olur ve kilit salındığında tekrar READY’ye alınır. Bu; paylaşımlı kaynak ve CPU kullanılabilirliği arasında basit bir **etkileşim örneğidir**.
 
 ---
 
@@ -201,7 +209,7 @@ Sistem kararlarını açık metinle duyurur:
 - **`[Memory]`** — page fault, çerçeve atama, FIFO ile kurban değiştirme.
 - **`[I/O]`** — simüle I/O bloklanması.
 - **`[Lock]` / `[Critical]` / `[Scheduler] Tblocked on mutex`** — eşzamanlılık.
-- **`[LOG …] PID=…`** — dosya oluşturma/okuma/yazma/silme ve zaman damgası (`logging.c`).
+- **`[LOG …] PID=…`** — dosya oluşturma/okuma/yazma/silme ve zaman damgası (`src/logging.c`).
 
 Çalışmanın tam çıktısı `make txt` ile `cikti.txt` içine alınabilir.
 
@@ -264,13 +272,13 @@ make MM_FRAME_COUNT=8 MM_PAGE_SIZE=512 MM_MAX_PAGES=32 MM_LOAD_TICKS=2
 
 | Dosya | Rol |
 |-------|-----|
-| `main.c` | Başlatma ve demo sırası |
-| `scheduler.c` / `scheduler.h` | Round Robin, blok listesi |
-| `memory.c` / `memory.h` / `mm_config.h` | Sayfalama ve FIFO |
-| `process.c` / `process.h` | Süreç durumu |
-| `concurrency.c` / `concurrency.h` | Baseline vs mutex |
-| `file_system.c` / `file_system.h` | Bellek içi dosya API |
-| `logging.c` / `logging.h` | Dosya işlem günlüğü |
+| `src/main.c` | Başlatma ve demo sırası |
+| `src/scheduler.c` / `include/scheduler.h` | Round Robin, blok listesi |
+| `src/memory.c` / `include/memory.h` / `include/mm_config.h` | Sayfalama ve FIFO |
+| `src/process.c` / `include/process.h` | Süreç durumu |
+| `src/concurrency.c` / `include/concurrency.h` | Baseline vs mutex |
+| `src/file_system.c` / `include/file_system.h` | Bellek içi dosya API |
+| `src/logging.c` / `include/logging.h` | Dosya işlem günlüğü |
 
 ---
 
