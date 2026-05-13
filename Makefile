@@ -32,7 +32,7 @@ SRCS    := $(SRC_DIR)/main.c \
 OBJS    := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 OUTFILE := cikti.txt
 
-.PHONY: all clean run txt failure1 txt-failure1 conc
+.PHONY: all clean run txt failure1 txt-failure1 conc sched mem log log-pre log-post
 
 all: $(TARGET)
 
@@ -55,6 +55,28 @@ run: $(TARGET)
 txt: $(TARGET)
 	./$(TARGET) > $(OUTFILE)
 	@echo "Çıktı $(OUTFILE) dosyasına yazıldı."
+
+# --- Modül çıktıları (mini-os tam çalışır; stdout süzülür) ---
+
+# Zamanlayıcı + bellek + I/O: ilk [Scheduler] satırından ilk [Concurrency] öncesi (scheduler.c + memory.c, round_robin)
+sched: $(TARGET)
+	./$(TARGET) | awk '/^\[Scheduler\]/ && !started { started=1 } started && /\[Concurrency\]/ { exit } started { print }'
+
+# Sadece memory.c satırları
+mem: $(TARGET)
+	./$(TARGET) | grep '^\[Memory\]'
+
+# Tüm dosya işlem günlükleri (logging.c)
+log: $(TARGET)
+	./$(TARGET) | grep '^\[LOG'
+
+# RR öncesi: CREATE / WRITE logları (ilk [LOG] … ilk [Scheduler] öncesi)
+log-pre: $(TARGET)
+	./$(TARGET) | awk '/^\[LOG / && !started { started=1 } started && /^\[Scheduler\]/ { exit } started { print }'
+
+# concurrency_demo_run sonrası: READ / DELETE logları
+log-post: $(TARGET)
+	./$(TARGET) | awk '/^\[Result\] Enhanced expected=/ { seen=1; next } seen && /^\[LOG / { post=1 } post { print }'
 
 # Sadece concurrency.c çıktısının tamamı: ilk [Concurrency] satırından önce boş satır; ilk [LOG satırına kadar (grep kaçırmaz)
 conc: $(TARGET)
