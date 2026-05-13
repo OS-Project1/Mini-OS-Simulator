@@ -32,7 +32,7 @@ SRCS    := $(SRC_DIR)/main.c \
 OBJS    := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 OUTFILE := cikti.txt
 
-.PHONY: all clean run txt failure1 txt-failure1
+.PHONY: all clean run txt failure1 txt-failure1 conc
 
 all: $(TARGET)
 
@@ -55,6 +55,10 @@ run: $(TARGET)
 txt: $(TARGET)
 	./$(TARGET) > $(OUTFILE)
 	@echo "Çıktı $(OUTFILE) dosyasına yazıldı."
+
+# Sadece concurrency.c çıktısının tamamı: ilk [Concurrency] satırından önce boş satır; ilk [LOG satırına kadar (grep kaçırmaz)
+conc: $(TARGET)
+	./$(TARGET) | awk '/\[Concurrency\]/ && !started { started=1; print "" } started && /^\[LOG / { exit } started { print }'
 
 # Senaryo 1 (FAILURE_SCENARIO.md): fizik çerçeve baskısı — az çerçeve + daha geniş sanal alan + yükleme gecikmesi
 # Kullanım: make failure1   veya   make txt-failure1
