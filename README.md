@@ -259,7 +259,17 @@ Sistem kararlarını açık metinle duyurur:
 make
 make run
 make txt
+make sched
+make mem
+make log
+make log-pre
+make log-post
+make conc
 ```
+
+`make sched` … `make conc`: modül çıktısı süzme (ayrıntı **`CALISTIRMA.md`**). `make conc`: `concurrency_demo_run()` diliminin tamamı. Tam program: `./mini-os` veya `make txt`.
+
+`cikti.txt`, `grep` örnekleri ve `build/*.o` derleme satırları için yine **`CALISTIRMA.md`**.
 
 Belleği derlemede parametrelemek için:
 
