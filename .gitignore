@@ -1,5 +1,6 @@
 *.o
 mini-os
+mini-os.exe
 build/
 cikti.txt
 cikti_senaryo1_bellek.txt

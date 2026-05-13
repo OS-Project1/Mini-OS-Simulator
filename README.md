@@ -36,9 +36,10 @@ Tema olarak **genel amaçlı, eğitim odaklı mini bir işletim sistemi kabuğu*
 `src/main.c` sırasıyla:
 
 1. Bellek ve üç sürecin sayfa tablolarını başlatır.  
-2. Üç süreci Round Robin zamanlayıcıya verir (`round_robin(&queue, 2)`).  
-3. Ardından eşzamanlılık demolarını (`concurrency_demo_run`) çalıştırır.  
-4. Dosya sistemini kullanarak örnek create/write/read/delete yapar ve loglar yazılır.
+2. Dosya sistemini başlatır; örnek `data.txt` dosyasını oluşturup yazar (**Round Robin öncesi**, böylece zamanlayıcı içinde `read_file` demoları çalışır).  
+3. Üç süreci Round Robin zamanlayıcıya verir (`round_robin(&queue, 2)`).  
+4. Eşzamanlılık demolarını (`concurrency_demo_run`) çalıştırır.  
+5. Dosya sisteminde ek `read_file` ve `delete_file` ile temizlik yapar; loglar yazılır.
 
 ---
 
@@ -76,6 +77,7 @@ flowchart LR
     MAIN --> FS
 
     SCHED -->|"access_memory()"| MEM
+    SCHED -->|"read_file() (simüle blok)"| FS
     MEM -.-> MMC
     FS --> LOG
 ```

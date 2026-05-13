@@ -13,6 +13,11 @@
 #define FS_MAX_NAME 64
 #endif
 
+/** Simulated disk latency (scheduler ticks) after a successful read during RR. */
+#ifndef FS_IO_SIM_TICKS
+#define FS_IO_SIM_TICKS 2
+#endif
+
 typedef struct File
 {
     char name[FS_MAX_NAME];

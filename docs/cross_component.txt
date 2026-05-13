@@ -1,0 +1,121 @@
+================================================================================
+MINI-OS — BİLEŞENLER ARASI ETKİLEŞİM (CROSS-COMPONENT INTERACTION)
+Güncel kod tabanına göre baştan yazılmış özet ve sunum notu
+================================================================================
+
+Bu dosya, ders / ödev kapsamında istenen şu maddeleri kodla eşleştirir:
+  • En az iki OS bileşeni anlamlı biçimde etkileşir.
+  • Bu etkileşimlerden biri mutlaka ZAMANLAMA (scheduling) içerir.
+  • Bir diğeri BELLEK veya DOSYA G/Ç (file I/O) içerir.
+
+Projede bu üç şart, aşağıdaki iki ayrı zincirle karşılanır.
+
+================================================================================
+1) ZAMANLAYICI + BELLEK (PAGE FAULT → BLOK → TEKRAR KUYRUK)
+================================================================================
+
+Ne anlatılır?
+  Çalışan bir süreç için rastgele bir sanal adrese erişim denenir. Sayfa
+  bellekte değilse PAGE FAULT oluşur; bellek modülü süreci BLOCKED yapar ve
+  birkaç tick sürecek “sayfa yükleme” beklemesi atar. Zamanlayıcı bu süreci
+  hazır kuyruğa geri koymaz; bloklu süreç listesine alır. Süre bitince süreç
+  READY olur ve tekrar hazır kuyruğa girer.
+
+Nerede?
+  • src/scheduler.c — round_robin içinde access_memory(&p, va) çağrısı;
+    dönüş false ve p.state == BLOCKED ise blocked_add(p).
+  • src/memory.c — access_memory: geçersiz/ yüklü olmayan sayfada
+    printf ile page fault, p->state = BLOCKED, blocked_ticks = MM_LOAD_TICKS,
+    load_page_into_memory, return false.
+  • include/mm_config.h — MM_LOAD_TICKS (yüklemenin simüle süresi).
+
+Hocaya tek cümle:
+  “Bellek olayı (page fault) süreci blokluyor; zamanlayıcı da onu çalışma
+   sırasından çıkarıp tick sayımıyla tekrar hazır hale getiriyor.”
+
+================================================================================
+2) ZAMANLAYICI + DOSYA SİSTEMİ (DOSYA OKUMA → SİMÜLE BLOK → KUYRUKTAN ÇIKMA)
+================================================================================
+
+Ne anlatılır?
+  Dosya sistemi artık yalnızca main’in sonunda izole çalışmıyor. main,
+  Round Robin başlamadan önce dosyayı oluşturup yazar; böylece zamanlayıcı
+  döngüsü içinde read_file anlamlı sonuç dönebilsin. round_robin sırasında
+  bazı zaman dilimlerinde süreç data.txt dosyasını okur; okuma başarılıysa
+  gerçek disk gecikmesi yoktur — FS_IO_SIM_TICKS kadar tick için süreç
+  BLOCKED yapılır, blocked_add ile hazır kuyruktan çıkarılır; süre dolunca
+  blocked_tick_and_wake ile tekrar READY + kuyruğa alınır.
+
+Nerede?
+  • src/main.c — file_system_init, create_file, write_file Round Robin
+    öncesinde; böylece SCHED_FS_DEMO_FILE içeriği vardır.
+  • src/scheduler.c — SCHED_FS_DEMO_FILE ("data.txt"); rand() ile ara sıra
+    read_file(p.pid, ...); başarılıysa [FS I/O] logu, BLOCKED,
+    blocked_ticks = FS_IO_SIM_TICKS, blocked_add, continue.
+  • include/file_system.h — FS_IO_SIM_TICKS (varsayılan 2; derlemede -D ile
+    değiştirilebilir).
+
+İkinci bir bloklama (isteğe bağlı çeşitlilik):
+  • Aynı dosyada rand() % 4 ile “generic I/O” da tetiklenebilir; bu dosya
+    çağrısı değil, soyut gecikme simülasyonudur.
+
+Hocaya tek cümle:
+  “Süreç çalışırken dosya okuması yapılıyor; simüle disk gecikmesi için
+   süreç bloklanıyor ve hazır kuyruktan çıkarılıyor — yani dosya G/Ç de
+   zamanlama kararını etkiliyor.”
+
+================================================================================
+3) main.c YÜRÜTME SIRASI (BÜTÜN DEMOYU ANLAMAK İÇİN)
+================================================================================
+
+1) memory_init + her süreç için process_page_table_init
+2) file_system_init + create_file + write_file (RR öncesi; zamanlayıcı FS’yi
+   kullanabilsin)
+3) Hazır kuyruk + üç süreç + round_robin(&queue, 2)
+4) concurrency_demo_run()  (zamanlayıcıdan bağımsız iş parçacığı / mutex demosu)
+5) read_file + delete_file (RR bittikten sonra ek okuma ve temizlik)
+
+================================================================================
+4) ÖRNEK / ŞEMA İLE ÖZET
+================================================================================
+
+  [main] FS hazırla (init, create, write)
+           |
+           v
+  [round_robin] ---> bellek: access_memory -----> page fault? --YES--> BLOCKED
+       |                    |                              blocked_add
+       |                    +--> OK devam
+       |
+       +--> dosya: read_file başarılı? --YES--> BLOCKED + FS_IO_SIM_TICKS
+       |                    blocked_add
+       +--> (opsiyonel) generic I/O --> BLOCKED
+       |
+       +--> quantum: remaining_time -= slice; gerekirse tekrar kuyruk
+
+  Hazır kuyruk boş, bloklu süreçler varsa: blocked_tick_and_wake (tick, sonra
+  READY ve enqueue).
+
+================================================================================
+5) RUBRİK / ÖDEV İLE EŞLEŞTİRME
+================================================================================
+
+İstenen                               | Karşılık
+--------------------------------------+--------------------------------------
+İki bileşen anlamlı etkileşsin        | Scheduler + Memory; Scheduler + FS
+Zamanlama içersin                     | Her iki zincirde round_robin
+Bellek veya dosya I/O içersin         | Page fault (bellek); read_file (FS)
+
+================================================================================
+6) KAYNAK DOSYALAR (HIZLI ERİŞİM)
+================================================================================
+
+  src/main.c
+  src/scheduler.c
+  src/memory.c
+  src/file_system.c
+  include/mm_config.h
+  include/file_system.h
+
+================================================================================
+SON
+================================================================================

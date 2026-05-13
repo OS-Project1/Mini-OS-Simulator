@@ -1,8 +1,12 @@
 #include "scheduler.h"
 #include "memory.h"
+#include "file_system.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+
+/* Must match demo file prepared in main.c before round_robin(). */
+#define SCHED_FS_DEMO_FILE "data.txt"
 
 static int min_int(int a, int b)
 {
@@ -129,9 +133,22 @@ void round_robin(ReadyQueue *q, int time_quantum)
             }
 
             if (p.remaining_time > 0 && (rand() % 3 == 0)) {
+                const char *data = read_file(p.pid, SCHED_FS_DEMO_FILE);
+                if (data != NULL) {
+                    (void)data;
+                    printf("[FS I/O] P%d read %s — blocked (simulated disk latency, %d ticks)\n",
+                           p.pid, SCHED_FS_DEMO_FILE, FS_IO_SIM_TICKS);
+                    p.state = BLOCKED;
+                    p.blocked_ticks = FS_IO_SIM_TICKS;
+                    blocked_add(p);
+                    continue;
+                }
+            }
+
+            if (p.remaining_time > 0 && (rand() % 4 == 0)) {
                 p.state = BLOCKED;
                 p.blocked_ticks = 1 + rand() % 3;
-                printf("[I/O] Process P%d is blocked for I/O\n", p.pid);
+                printf("[I/O] Process P%d is blocked for generic I/O\n", p.pid);
                 blocked_add(p);
                 continue;
             }

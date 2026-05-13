@@ -17,6 +17,10 @@ int main(void)
     process_page_table_init(2);
     process_page_table_init(3);
 
+    file_system_init();
+    create_file(1, "data.txt");
+    write_file(1, "data.txt", "Hello OS");
+
     ReadyQueue queue;
     ready_queue_init(&queue);
 
@@ -31,13 +35,7 @@ int main(void)
     round_robin(&queue, 2);
     concurrency_demo_run();
 
-    file_system_init();
-
-    create_file(1, "data.txt");
-    write_file(1, "data.txt", "Hello OS");
-
     read_file(2, "data.txt");
-
     delete_file(1, "data.txt");
 
     return 0;
