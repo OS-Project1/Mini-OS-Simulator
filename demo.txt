@@ -1,0 +1,68 @@
+=== Memory Management / FIFO Paging ===
+
+=== Scheduler / Round Robin Example ===
+[Scheduler] Context switch to P2
+[Scheduler] Running P2
+[Scheduler] Time slice over for P2, re-queued
+[Scheduler] Context switch to P1
+[Scheduler] Running P1
+[Scheduler] Process P3 unblocked → READY
+[Scheduler] Context switch to P3
+[Scheduler] Running P3
+
+
+=== Memory Management / Paging Example ===
+[Memory] Page fault in Process 2 at page 11
+[Memory] Replacing page 11 of Process 3 (FIFO)
+[Memory] Allocated frame 0 to Process 2 (page 11)
+[Scheduler] Context switch to P1
+[Scheduler] Running P1
+[Memory] Page fault in Process 1 at page 13
+[Memory] Replacing page 0 of Process 1 (FIFO)
+[Memory] Allocated frame 1 to Process 1 (page 13)
+
+
+=== File System + Scheduler Interaction ===
+[Scheduler] Running P1
+[LOG 2026-05-13 20:30:32] PID=1 READ   data.txt
+[FS I/O] P1 read data.txt — blocked (simulated disk latency, 2 ticks)
+[Scheduler] Context switch to P2
+[Scheduler] Running P2
+[Memory] Page fault in Process 2 at page 7
+[Scheduler] Process P1 unblocked → READY
+
+
+=== Concurrency Baseline: No Lock ===
+[Scheduler] Dispatch T1 (RUNNING)
+[Thread T1] read shared=0
+[Scheduler] Dispatch T2 (RUNNING)
+[Thread T2] read shared=0
+[Scheduler] Dispatch T3 (RUNNING)
+[Thread T3] read shared=0
+[Thread T1] local increment -> 1
+[Thread T2] local increment -> 1
+[Thread T3] local increment -> 1
+[Thread T1] write shared=1
+[Thread T2] write shared=1
+[Thread T3] write shared=1
+[Result] Baseline expected=12, actual=4
+
+=== Concurrency Enhanced: Mutex Protection ===
+[Scheduler] Dispatch T1 (RUNNING)
+[Lock] T1 acquired mutex
+[Scheduler] Dispatch T2 (RUNNING)
+[Scheduler] T2 blocked on mutex (owner=T1)
+[Scheduler] Dispatch T3 (RUNNING)
+[Scheduler] T3 blocked on mutex (owner=T1)
+[Critical] T1: 0 -> 1 (remaining_ops=3)
+[Lock] T1 released mutex
+[Scheduler] T2 unblocked and moved to READY
+[Lock] T2 acquired mutex
+[Critical] T2: 1 -> 2 (remaining_ops=3)
+[Result] Enhanced expected=12, actual=12
+
+
+=== Process Lifecycle Completion ===
+[Scheduler] P2 finished execution
+[Scheduler] P1 finished execution
+[Scheduler] P3 finished execution
